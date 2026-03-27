@@ -9,7 +9,7 @@ import Lobby from './components/Lobby';
 import { SatelliteData, fetchSatellites, fetchPeopleInSpace } from './services/satelliteService';
 import { Launch, fetchUpcomingLaunches } from './services/launchService';
 import { motion, AnimatePresence } from 'motion/react';
-import { Satellite, Activity, Ruler, Clock, Search, ArrowLeft, Rocket, MapPin, X, Calendar, Info, Users } from 'lucide-react';
+import { Satellite, Activity, Ruler, Clock, Search, ArrowLeft, Rocket, MapPin, X, Calendar, Info, Users, LayoutGrid } from 'lucide-react';
 
 export default function App() {
   const [viewMode, setViewMode] = useState<'lobby' | 'satellites' | 'launches'>('lobby');
@@ -206,6 +206,19 @@ export default function App() {
               </AnimatePresence>
             </div>
           )}
+
+          {/* All Projects Button */}
+          <motion.a
+            href="https://eimithut.pages.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="bg-black/40 backdrop-blur-md border border-white/10 p-3 px-4 rounded-xl hover:bg-white/10 transition-colors group flex items-center gap-2 pointer-events-auto"
+          >
+            <LayoutGrid className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+            <span className="text-sm font-medium text-gray-400 group-hover:text-white transition-colors hidden md:inline">All Projects</span>
+          </motion.a>
         </header>
 
         {/* Satellite Filters (Only for Satellites) */}

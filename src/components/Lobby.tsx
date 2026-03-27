@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Satellite, Rocket } from 'lucide-react';
+import { Satellite, Rocket, LayoutGrid } from 'lucide-react';
 
 interface LobbyProps {
   onSelectMode: (mode: 'satellites' | 'launches') => void;
@@ -11,6 +11,21 @@ const Lobby: React.FC<LobbyProps> = ({ onSelectMode }) => {
     <div className="relative w-full h-screen bg-black overflow-hidden flex items-center justify-center font-sans">
       {/* Background with stars (could be a static image or simple css stars) */}
       <div className="absolute inset-0 bg-[url('//unpkg.com/three-globe/example/img/night-sky.png')] opacity-50 z-0" />
+      
+      {/* Top Right Navigation */}
+      <div className="absolute top-6 right-6 z-20">
+        <motion.a
+          href="https://eimithut.pages.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="bg-black/40 backdrop-blur-md border border-white/10 p-3 px-4 rounded-xl hover:bg-white/10 transition-colors group flex items-center gap-2"
+        >
+          <LayoutGrid className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+          <span className="text-sm font-medium text-gray-400 group-hover:text-white transition-colors hidden md:inline">All Projects</span>
+        </motion.a>
+      </div>
       
       <div className="z-10 flex flex-col items-center gap-12 p-8 max-w-4xl w-full">
         <motion.div 
