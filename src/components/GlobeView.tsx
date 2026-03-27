@@ -363,7 +363,7 @@ const GlobeView: React.FC<GlobeViewProps> = ({
         neighbors.forEach(n => {
           paths.push({
             coords: [[s1.lat, s1.lng, s1.alt], [n.sat.lat, n.sat.lng, n.sat.alt]],
-            color: type === 'starlink' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)'
+            color: type === 'starlink' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(59, 130, 246, 0.4)'
           });
         });
       }

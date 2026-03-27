@@ -33,13 +33,22 @@ export default function App() {
   const [isSkyView, setIsSkyView] = useState(false);
 
   // Get User Location
-  useEffect(() => {
+  const requestLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => console.warn("Geolocation denied", err)
+        (err) => {
+          console.warn("Geolocation denied", err);
+          alert("Please enable location access in your browser settings to use visibility features.");
+        }
       );
+    } else {
+      alert("Geolocation is not supported by your browser.");
     }
+  };
+
+  useEffect(() => {
+    requestLocation();
   }, []);
 
   const visibleSatellites = useMemo(() => {
@@ -186,7 +195,7 @@ export default function App() {
             >
               <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
             </button>
-            <div className="bg-black/40 backdrop-blur-md border border-white/10 p-3 px-5 rounded-xl shadow-lg">
+            <div className="bg-black/40 backdrop-blur-md border border-white/10 p-3 px-5 rounded-xl shadow-lg flex items-center gap-4">
               <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                 {viewMode === 'satellites' ? (
                   <><Satellite className="w-5 h-5 text-emerald-400" /> Satellite Tracker</>
@@ -194,6 +203,12 @@ export default function App() {
                   <><Rocket className="w-5 h-5 text-rose-400" /> Launch Schedule</>
                 )}
               </h1>
+              {userLocation && (
+                <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                  <MapPin className="w-3 h-3 text-emerald-400" />
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase">Location Active</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -296,8 +311,28 @@ export default function App() {
         {viewMode === 'satellites' && (
           <div className="absolute top-44 left-4 md:left-6 bottom-6 w-80 pointer-events-auto flex flex-col gap-4">
             <div className="flex-1 overflow-y-auto bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-2 space-y-2 no-scrollbar">
+              
+              {/* Location Access Prompt */}
+              {!userLocation && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2 text-emerald-400">
+                    <MapPin className="w-4 h-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Location Required</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-3 leading-relaxed">
+                    Enable location to see which satellites are visible from your current position tonight.
+                  </p>
+                  <button 
+                    onClick={requestLocation}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-2 rounded-lg transition-colors"
+                  >
+                    Enable Location Access
+                  </button>
+                </div>
+              )}
+
               {/* Visible Tonight Section */}
-              {visibleSatellites.length > 0 && (
+              {userLocation && visibleSatellites.length > 0 && (
                 <div className="mb-4">
                   <div className="flex items-center gap-2 px-2 py-1 mb-2">
                     <Eye className="w-3 h-3 text-emerald-400" />
@@ -348,6 +383,31 @@ export default function App() {
                   Showing top 50 of {filteredSatellites.length} satellites
                 </p>
               )}
+
+              {/* Help / Guide Section */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mt-4">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <Info className="w-3 h-3" /> Feature Guide
+                </h4>
+                <ul className="space-y-2 text-[10px] text-gray-500 leading-relaxed">
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400">•</span>
+                    <span><b>Visible Tonight:</b> Shows satellites currently above your horizon. Requires location access.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400">•</span>
+                    <span><b>Constellation Mode:</b> Toggle the button above to see the network mesh of Starlink and GPS.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400">•</span>
+                    <span><b>Sky View:</b> Switches to a ground-level perspective looking up at the sky.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-emerald-400">•</span>
+                    <span><b>ISS Live Feed:</b> Select the ISS on the globe to open the live video stream.</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
@@ -591,7 +651,7 @@ export default function App() {
                   <iframe 
                     width="100%" 
                     height="100%" 
-                    src="https://www.youtube.com/embed/xRPjKQtRXR8?autoplay=1&mute=1" 
+                    src="https://www.youtube.com/embed/P9C25Un7qpY?autoplay=1&mute=1" 
                     title="ISS Live Feed"
                     frameBorder="0" 
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
