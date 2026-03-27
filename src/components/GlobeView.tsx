@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import Globe, { GlobeMethods } from 'react-globe.gl';
-import { propagateSatellite, getTrajectory, SatelliteData } from '../services/satelliteService';
+import { propagateSatellite, getTrajectory, SatelliteData, getTerminatorPath } from '../services/satelliteService';
 import { Launch } from '../services/launchService';
 import * as THREE from 'three';
 
@@ -8,13 +8,16 @@ const EARTH_RADIUS_KM = 6371;
 const SAT_SIZE = 1.5; // Visual size multiplier
 
 interface GlobeViewProps {
-  mode: 'satellites' | 'launches';
+  mode: 'lobby' | 'satellites' | 'launches';
   satellites?: SatelliteData[];
   launches?: Launch[];
   onHoverSatellite?: (sat: SatelliteData | null) => void;
   onHoverLaunch?: (launch: Launch | null) => void;
   focusedSatelliteId?: string | null;
   selectedLaunchId?: string | null;
+  showConstellationLines?: boolean;
+  userLocation?: { lat: number, lng: number } | null;
+  isSkyView?: boolean;
 }
 
 const GlobeView: React.FC<GlobeViewProps> = ({ 
@@ -24,13 +27,17 @@ const GlobeView: React.FC<GlobeViewProps> = ({
   onHoverSatellite, 
   onHoverLaunch,
   focusedSatelliteId,
-  selectedLaunchId
+  selectedLaunchId,
+  showConstellationLines = false,
+  userLocation = null,
+  isSkyView = false
 }) => {
   const globeEl = useRef<GlobeMethods | undefined>(undefined);
   const [time, setTime] = useState(new Date());
   const [hoveredSat, setHoveredSat] = useState<SatelliteData | null>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [landPolygons, setLandPolygons] = useState([]);
+  const [terminatorData, setTerminatorData] = useState<any[]>([]);
 
   // Load Land Polygons for Minimalistic Map
   useEffect(() => {
@@ -38,6 +45,16 @@ const GlobeView: React.FC<GlobeViewProps> = ({
       .then(res => res.json())
       .then(data => setLandPolygons(data.features))
       .catch(err => console.error('Failed to load land polygons:', err));
+  }, []);
+
+  // Update Terminator
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      setTerminatorData([{ path: getTerminatorPath(now) }]);
+    }, 10000);
+    setTerminatorData([{ path: getTerminatorPath(new Date()) }]);
+    return () => clearInterval(timer);
   }, []);
   
   // Handle window resize
@@ -316,6 +333,56 @@ const GlobeView: React.FC<GlobeViewProps> = ({
     return el;
   };
 
+  // Constellation Lines
+  const constellationPaths = useMemo(() => {
+    if (!showConstellationLines || mode !== 'satellites') return [];
+    
+    const groups: Record<string, SatelliteData[]> = {};
+    activeSatellites.forEach(sat => {
+      if (sat.type === 'starlink' || sat.type === 'gps') {
+        if (!groups[sat.type]) groups[sat.type] = [];
+        groups[sat.type].push(sat);
+      }
+    });
+
+    const paths: any[] = [];
+    Object.entries(groups).forEach(([type, sats]) => {
+      // Draw a "web" by connecting each satellite to its nearest 2 neighbors
+      // This is a simplified visualization of the constellation mesh
+      for (let i = 0; i < sats.length; i++) {
+        const s1 = sats[i];
+        const neighbors = sats
+          .filter(s => s.id !== s1.id)
+          .map(s => ({ 
+            sat: s, 
+            dist: Math.sqrt(Math.pow(s.lat - s1.lat, 2) + Math.pow(s.lng - s1.lng, 2)) 
+          }))
+          .sort((a, b) => a.dist - b.dist)
+          .slice(0, 2);
+
+        neighbors.forEach(n => {
+          paths.push({
+            coords: [[s1.lat, s1.lng, s1.alt], [n.sat.lat, n.sat.lng, n.sat.alt]],
+            color: type === 'starlink' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)'
+          });
+        });
+      }
+    });
+    return paths;
+  }, [activeSatellites, showConstellationLines, mode]);
+
+  // Handle Sky View Camera
+  useEffect(() => {
+    if (isSkyView && userLocation && globeEl.current) {
+      // Move camera to user location, looking up
+      globeEl.current.pointOfView({
+        lat: userLocation.lat,
+        lng: userLocation.lng,
+        altitude: 0.5 // Very close to surface
+      }, 1000);
+    }
+  }, [isSkyView, userLocation]);
+
   return (
     <div className="w-full h-full bg-black">
       <Globe
@@ -333,6 +400,22 @@ const GlobeView: React.FC<GlobeViewProps> = ({
         polygonStrokeColor={() => '#555555'} // Slightly lighter stroke
         polygonAltitude={0.01}
         
+        // --- PATHS (Terminator, Constellations, Trajectories) ---
+        pathsData={[
+          ...terminatorData, 
+          ...constellationPaths,
+          ...(mode === 'satellites' ? trajectoryData : [])
+        ]}
+        pathPoints={d => d.path || d.coords}
+        pathPointLat={d => d.lat || d[0]}
+        pathPointLng={d => d.lng || d[1]}
+        pathPointAlt={d => (d.alt !== undefined ? d.alt / EARTH_RADIUS_KM : (d[2] || 0))}
+        pathColor={d => d.color || 'rgba(255, 255, 255, 0.4)'}
+        pathStroke={d => d.color ? 1 : 2}
+        pathDashLength={d => d.color ? 0 : 0.05}
+        pathDashGap={d => d.color ? 0 : 0.02}
+        pathDashAnimateTime={d => d.color ? 0 : 5000}
+        
         // --- SATELLITE MODE ---
         objectsData={mode === 'satellites' ? activeSatellites : []}
         objectLat="lat"
@@ -348,18 +431,6 @@ const GlobeView: React.FC<GlobeViewProps> = ({
           }
           document.body.style.cursor = sat ? 'pointer' : 'default';
         }}
-        
-        // Trajectories
-        pathsData={mode === 'satellites' ? trajectoryData : []}
-        pathPoints="path"
-        pathPointLat="lat"
-        pathPointLng="lng"
-        pathPointAlt={(d: any) => d.alt / EARTH_RADIUS_KM}
-        pathColor={() => 'rgba(6, 182, 212, 0.6)'}
-        pathDashLength={0.05}
-        pathDashGap={0.01}
-        pathDashAnimateTime={2000}
-        pathStroke={2}
 
         // Rings (Selection Highlight)
         ringsData={mode === 'satellites' && activeHoveredSat ? [activeHoveredSat] : []}

@@ -139,3 +139,61 @@ export const getTrajectory = (sat: SatelliteData, durationMinutes: number = 180,
   }
   return path;
 };
+
+// --- Sun & Terminator Utilities ---
+
+export const getSunPosition = (date: Date = new Date()) => {
+  // Simple approximation of sub-solar point
+  const now = date.getTime();
+  const dayOfYear = (now - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000;
+  
+  // Declination (approx)
+  const declination = 23.44 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
+  
+  // Right Ascension / GMST
+  const gmst = satellite.gstime(date);
+  const lng = -satellite.degreesLong(gmst);
+  
+  return { lat: declination, lng };
+};
+
+export const getTerminatorPath = (date: Date = new Date()) => {
+  const sunPos = getSunPosition(date);
+  const path = [];
+  const sunLatRad = sunPos.lat * Math.PI / 180;
+  const sunLngRad = sunPos.lng * Math.PI / 180;
+
+  for (let i = 0; i <= 360; i += 5) {
+    const angle = i * Math.PI / 180;
+    
+    // Spherical trigonometry to find points 90 degrees from sub-solar point
+    const latRad = Math.asin(Math.cos(sunLatRad) * Math.cos(angle));
+    const lngRad = sunLngRad + Math.atan2(Math.sin(angle), -Math.sin(sunLatRad) * Math.cos(angle));
+    
+    path.push({
+      lat: latRad * 180 / Math.PI,
+      lng: lngRad * 180 / Math.PI
+    });
+  }
+  
+  return path;
+};
+
+export const isAboveHorizon = (sat: SatelliteData, observer: { lat: number, lng: number, alt: number }, date: Date = new Date()) => {
+  const gmst = satellite.gstime(date);
+  const observerGd = {
+    latitude: observer.lat * Math.PI / 180,
+    longitude: observer.lng * Math.PI / 180,
+    height: observer.alt / 1000 // meters to km
+  };
+  
+  const positionEci = satellite.propagate(sat.satrec, date).position as any;
+  if (!positionEci) return false;
+  
+  const lookAngles = satellite.ecfToLookAngles(
+    observerGd, 
+    satellite.eciToEcf(positionEci, gmst)
+  );
+  
+  return lookAngles.elevation > 0; // Elevation > 0 means above horizon
+};

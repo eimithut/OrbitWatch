@@ -1,5 +1,5 @@
 {
   "name": "OrbitWatch",
   "description": "Real-time 3D satellite tracking and visualization on a photorealistic Earth.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["geolocation"]
 }
